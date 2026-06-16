@@ -1,5 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 from dotenv import load_dotenv
+from app.fetcher import fetch_repo_files
 import os
 
 load_dotenv()
@@ -11,6 +13,10 @@ app = FastAPI(
 )
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+
+
+class RepoRequest(BaseModel):
+    github_url: str
 
 
 @app.get("/health")
@@ -29,3 +35,17 @@ def root():
         "docs": "/docs",
         "health": "/health"
     }
+
+
+@app.post("/fetch")
+def fetch_repo(request: RepoRequest):
+    """
+    Takes a GitHub URL and returns all useful files in the repo.
+    """
+    try:
+        result = fetch_repo_files(request.github_url)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
