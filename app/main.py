@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from app.fetcher import fetch_repo_files
+from app.analyzer import analyze_repo
 import os
 
 load_dotenv()
@@ -44,6 +45,21 @@ def fetch_repo(request: RepoRequest):
     """
     try:
         result = fetch_repo_files(request.github_url)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+@app.post("/analyze")
+def analyze(request: RepoRequest):
+    """
+    Main endpoint: analyze a GitHub repo and return
+    a structured report about its architecture.
+    """
+    try:
+        result = analyze_repo(request.github_url)
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
