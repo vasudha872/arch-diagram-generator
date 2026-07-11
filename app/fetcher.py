@@ -115,4 +115,9 @@ def fetch_repo_files(github_url: str) -> dict:
     }
 
     print(f"\nDone. {len(store.files)} files fetched, {skipped} skipped, {errors} errors.")
+    print(f"\n=== FILESTORE CONTENTS ===")
+    for path, content in list(store.files.items())[:5]:
+        print(f"\nFILE: {path}")
+        print(f"CONTENT PREVIEW: {content[:200]}")
+        print("-" * 40)
     return store.get_summary()
