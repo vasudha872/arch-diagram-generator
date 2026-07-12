@@ -6,6 +6,7 @@ from app.analyzer import analyze_repo
 from app.parser import build_dependency_graph
 from app.analyzer import build_file_store
 from app.config_parser import extract_config_data
+from app.graph_builder import build_unified_graph
 import os
 
 load_dotenv()
@@ -95,6 +96,22 @@ def get_config_data(request: RepoRequest):
         store = build_file_store(request.github_url)
         config = extract_config_data(store)
         return config
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/unified-graph")
+def get_unified_graph(request: RepoRequest):
+    """
+    The main output endpoint. Returns a complete graph spec
+    combining file dependencies + package dependencies +
+    docker services. Ready for diagram rendering.
+    """
+    try:
+        store = build_file_store(request.github_url)
+        graph = build_unified_graph(store)
+        return graph
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

@@ -185,7 +185,7 @@ def extract_config_data(store) -> Dict:
             result["scripts"].extend(pkg_data["scripts"])
             print(f"Parsed package.json: {len(pkg_data['dependencies'])} deps")
 
-        elif filename in ('docker-compose.yml', 'docker-compose.yaml'):
+        elif filename in ('docker-compose.yml', 'docker-compose.yaml', 'compose.yml', 'compose.yaml'):
             compose_data = parse_docker_compose(content)
             result["docker_services"].extend(compose_data["services"])
             print(f"Parsed docker-compose: {len(compose_data['services'])} services")
