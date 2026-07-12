@@ -163,7 +163,7 @@ def analyze_repo(github_url: str) -> dict:
     Main function: analyze a GitHub repo and return
     a structured report about its architecture.
     """
-    print(f"\nAnalyzing: {github_url}")
+    
 
     # Step 1: fetch all files into the store
     store = build_file_store(github_url)
