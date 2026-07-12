@@ -5,6 +5,7 @@ from app.fetcher import fetch_repo_files
 from app.analyzer import analyze_repo
 from app.parser import build_dependency_graph
 from app.analyzer import build_file_store
+from app.config_parser import extract_config_data
 import os
 
 load_dotenv()
@@ -78,6 +79,22 @@ def get_dependency_graph(request: RepoRequest):
         store = build_file_store(request.github_url)
         graph = build_dependency_graph(store)
         return graph
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/config")
+def get_config_data(request: RepoRequest):
+    """
+    Parse config files in a repo — requirements.txt,
+    package.json, docker-compose.yaml — and return
+    a unified dependency report.
+    """
+    try:
+        store = build_file_store(request.github_url)
+        config = extract_config_data(store)
+        return config
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
