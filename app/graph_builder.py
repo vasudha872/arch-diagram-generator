@@ -36,6 +36,93 @@ IMPORTANT_PACKAGES = {
     'axios', 'tanstack', 'prisma', 'mongoose',
 }
 
+# folders that clutter the diagram without adding architectural value
+NOISE_FOLDERS = {
+    '.github', '.vscode', '.agents', '.claude',
+    '.copier', '.pre-commit-config', 'node_modules',
+    '__pycache__', '.git', 'dist', 'build'
+}
+
+# file types that aren't useful in an architecture diagram
+NOISE_FILE_TYPES = {'other'}
+
+
+def is_meaningful_node(node: dict, all_edges: list) -> bool:
+    """
+    Decide if a node is worth showing in the diagram.
+    
+    Rules:
+    - Skip files in noise folders (.github, .vscode etc)
+    - Skip __init__.py files (they're just package markers)
+    - Skip nodes with no edges (isolated files)
+    - Always keep package and service nodes
+    - Always keep entry points
+    """
+    node_id = node["id"]
+    node_type = node.get("type", "")
+    label = node.get("label", "")
+
+    # always keep package and service nodes
+    if node_type in ("package", "service"):
+        return True
+
+    # skip noise file types
+    if node_type in NOISE_FILE_TYPES:
+        return False
+
+    # skip files in noise folders
+    for folder in NOISE_FOLDERS:
+        if node_id.startswith(folder + '/') or ('/' + folder + '/') in node_id:
+            return False
+
+    # skip __init__.py — they're just package markers, not real architecture
+    if label == '__init__.py':
+        return False
+
+    # skip isolated nodes (no edges at all)
+    node_edge_ids = {e["from"] for e in all_edges} | {e["to"] for e in all_edges}
+    if node_id not in node_edge_ids:
+        return False
+
+    return True
+
+
+def assign_layer(node: dict) -> str:
+    """
+    Assign each node to an architectural layer.
+    This is used for grouping in the diagram.
+    """
+    node_id = node["id"]
+    node_type = node.get("type", "")
+
+    if node_type == "package":
+        return "packages"
+
+    if node_type == "service":
+        return "infrastructure"
+
+    path_lower = node_id.lower()
+
+    if 'frontend' in path_lower or 'client' in path_lower:
+        return "frontend"
+
+    if 'test' in path_lower or 'spec' in path_lower:
+        return "tests"
+
+    if 'backend' in path_lower or 'server' in path_lower:
+        return "backend"
+
+    if 'api' in path_lower or 'routes' in path_lower:
+        return "api"
+
+    if 'core' in path_lower or 'config' in path_lower:
+        return "core"
+
+    if 'db' in path_lower or 'model' in path_lower or 'migration' in path_lower:
+        return "database"
+
+    return "app"
+
 
 def is_important_package(package: str) -> bool:
     """Check if a package is worth showing in the diagram."""
@@ -152,26 +239,46 @@ def build_unified_graph(store: FileStore) -> Dict:
             seen.add(key)
             unique_edges.append(edge)
 
+    # Step 8.5: filter out noise nodes and assign layers
+    filtered_nodes = []
+    for node in nodes:
+        if is_meaningful_node(node, unique_edges):
+            node["layer"] = assign_layer(node)
+            filtered_nodes.append(node)
+
+    # remove edges that reference filtered-out nodes
+    filtered_node_ids = {n["id"] for n in filtered_nodes}
+    filtered_edges = [
+        e for e in unique_edges
+        if e["from"] in filtered_node_ids
+        and e["to"] in filtered_node_ids
+    ]
+
+    
     # Step 9: build summary
     node_types = {}
-    for node in nodes:
+    layers = {}
+    for node in filtered_nodes:
         t = node.get("type", "unknown")
         node_types[t] = node_types.get(t, 0) + 1
+        l = node.get("layer", "app")
+        layers[l] = layers.get(l, 0) + 1
 
     summary = {
-        "total_nodes": len(nodes),
-        "total_edges": len(unique_edges),
+        "total_nodes": len(filtered_nodes),
+        "total_edges": len(filtered_edges),
         "node_types": node_types,
+        "layers": layers,
         "important_packages": important_packages,
         "docker_services": [
             s["name"] for s in config_data.get("docker_services", [])
         ]
     }
 
-    print(f"Unified graph: {len(nodes)} nodes, {len(unique_edges)} edges")
+    print(f"Unified graph: {len(filtered_nodes)} nodes, {len(filtered_edges)} edges")
 
     return {
-        "nodes": nodes,
-        "edges": unique_edges,
+        "nodes": filtered_nodes,
+        "edges": filtered_edges,
         "summary": summary
     }

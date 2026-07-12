@@ -96,3 +96,46 @@ services:
     names = [s['name'] for s in result['services']]
     assert 'api' in names
     assert 'db' in names
+
+
+from app.graph_builder import is_meaningful_node, assign_layer
+
+def test_is_meaningful_node_keeps_package():
+    node = {"id": "pkg:fastapi", "type": "package", "label": "fastapi"}
+    edges = []
+    assert is_meaningful_node(node, edges) == True
+
+def test_is_meaningful_node_removes_github_folder():
+    node = {"id": ".github/workflows/ci.yml", "type": "other", "label": "ci.yml"}
+    edges = []
+    assert is_meaningful_node(node, edges) == False
+
+def test_is_meaningful_node_removes_init_files():
+    node = {"id": "app/__init__.py", "type": "python", "label": "__init__.py"}
+    edges = [{"from": "app/__init__.py", "to": "app/main.py", "type": "import"}]
+    assert is_meaningful_node(node, edges) == False
+
+def test_is_meaningful_node_removes_isolated_nodes():
+    node = {"id": "app/utils.py", "type": "python", "label": "utils.py"}
+    edges = []
+    assert is_meaningful_node(node, edges) == False
+
+def test_assign_layer_backend():
+    node = {"id": "backend/app/main.py", "type": "python"}
+    assert assign_layer(node) == "backend"
+
+def test_assign_layer_frontend():
+    node = {"id": "frontend/src/App.tsx", "type": "javascript"}
+    assert assign_layer(node) == "frontend"
+
+def test_assign_layer_package():
+    node = {"id": "pkg:fastapi", "type": "package"}
+    assert assign_layer(node) == "packages"
+
+def test_assign_layer_service():
+    node = {"id": "svc:postgres", "type": "service"}
+    assert assign_layer(node) == "infrastructure"
+
+def test_assign_layer_tests():
+    node = {"id": "tests/test_main.py", "type": "python"}
+    assert assign_layer(node) == "tests"
