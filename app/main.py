@@ -3,6 +3,8 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from app.fetcher import fetch_repo_files
 from app.analyzer import analyze_repo
+from app.parser import build_dependency_graph
+from app.analyzer import build_file_store
 import os
 
 load_dotenv()
@@ -61,6 +63,21 @@ def analyze(request: RepoRequest):
     try:
         result = analyze_repo(request.github_url)
         return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/graph")
+def get_dependency_graph(request: RepoRequest):
+    """
+    Build and return a dependency graph for a GitHub repo.
+    Shows which files import which.
+    """
+    try:
+        store = build_file_store(request.github_url)
+        graph = build_dependency_graph(store)
+        return graph
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
